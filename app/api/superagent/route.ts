@@ -378,6 +378,13 @@ export async function POST(req: NextRequest) {
         });
         const google_docs_tools = await composio.tools.get(String(userId), {
             toolkits: ['GOOGLEDOCS'],
+            limit: 10
+        });
+        const get_google_docs_tools = await composio.tools.get(String(userId), {
+            tools: ['GOOGLEDOCS_GET_DOCUMENT_BY_ID']
+        });
+        const get_google_sheets_tools = await composio.tools.get(String(userId), {
+            tools: ['GOOGLESHEETS_GET_SHEET_BY_ID']
         });
         const composio_search_toolkit = await composio.tools.get(String(userId), {
             toolkits: ['COMPOSIO_SEARCH']
@@ -389,8 +396,8 @@ export async function POST(req: NextRequest) {
 
 
         // Always include slide generation tool - available for all requests
-        let allTools = Object.assign({},google_sheet_tools, google_docs_tools, composio_search_toolkit, composio_toolkit);
-        
+        let allTools = Object.assign({},google_sheet_tools, google_docs_tools, get_google_docs_tools, composio_search_toolkit, composio_toolkit);
+        console.log(allTools);
         // Always add the slide generation tool
         const customTools = await composio.tools.get(String(userId), {toolkits: [SLIDE_GENERATOR_TOOL]});
         allTools = Object.assign({}, allTools, customTools);
@@ -446,9 +453,7 @@ Available Tools: Research + Presentation + Google Workspace Tools
 🎯 REMEMBER: Default to conversation. Only use tools when the user clearly requests an action, not information or explanation.
 
 Don't use Wait for connection action. For non google related actions, use Composio Tools.
-You can use get document by id to get the document and read it's content.
-
-Use Get Document By ID only to get Google Docs document, not anything else.
+If google sheets doesn't find the doc, try google docs. If google docs doesn't find the doc, try google sheets.
 `;
 
         if (sheetUrl) {
