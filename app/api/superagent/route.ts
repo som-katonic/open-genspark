@@ -248,7 +248,7 @@ async function initializeSlideGenerationTool() {
             inputParams: z.object({
                 topic: z.string().describe('The topic or subject of the presentation'),
                 slideCount: z.number().min(1).max(20).default(5).describe('Number of slides to generate (1-20)'),
-                style: z.enum(['professional', 'creative', 'minimal', 'academic']).default('professional').describe('Presentation style')
+                style: z.enum(['professional', 'creative', 'minimal', 'academic']).default('professional').describe("The visual style for the presentation. MUST be one of the following: 'professional', 'creative', 'minimal', 'academic'.")
             }),
             execute: async (input: any, connectionConfig?: any) => {
                 try {
@@ -348,9 +348,9 @@ export async function POST(req: NextRequest) {
         // Initialize the custom slide generation tool
         await initializeSlideGenerationTool();
         
-        // Detect if this is a slide generation request - but only if the prompt actually asks for slides
-        const isExplicitSlideRequest = selectedTool === 'slides' && 
-                                     /\b(presentation|slide|slides|ppt|powerpoint|deck|create|make|generate)\b/i.test(prompt);
+        // --- RESTORED SLIDE GENERATION LOGIC ---
+        // Detect if the prompt is explicitly asking for a presentation.
+        const isExplicitSlideRequest = /\b(presentation|slide|slides|ppt|powerpoint|deck|create|make|generate)\b/i.test(prompt);
         
         if (isExplicitSlideRequest) {
             // Use the simplified slide generation with fixed templates
@@ -401,12 +401,13 @@ Generate substantial, professional content that demonstrates real expertise and 
             }));
 
             return NextResponse.json({
-                response: `Successfully generated presentation slides based on your prompt.`,
+                response: `I've created a new presentation for you. You can see a preview in the chat.`,
                 slides: slidesWithHTML,
                 hasSlides: true,
                 userId: userId
             });
         }
+        // --- END OF RESTORED LOGIC ---
 
         // Get comprehensive toolkits based on selected tool or default to all
         let toolkits = ['GOOGLESUPER', 'COMPOSIO_SEARCH'];
@@ -429,17 +430,13 @@ Generate substantial, professional content that demonstrates real expertise and 
         });
 
 
-        // Only include slide generation tool if explicitly requested or if prompt suggests presentation creation
-        const isSlideRequest = selectedTool === 'slides' || 
-                               /\b(presentation|slide|slides|ppt|powerpoint|deck)\b/i.test(prompt);
-        
+        // Always include slide generation tool - available for all requests
         let allTools = Object.assign({}, google_super_toolkit, google_super_docs_toolkit, composio_search_toolkit, composio_toolkit);
         
-        if (isSlideRequest) {
-            const customTools = await composio.tools.get(String(userId), {toolkits: [SLIDE_GENERATOR_TOOL]});
-            allTools = Object.assign({}, allTools, customTools);
-        }
-        console.log(allTools);
+        // Always add the slide generation tool
+        const customTools = await composio.tools.get(String(userId), {toolkits: [SLIDE_GENERATOR_TOOL]});
+        allTools = Object.assign({}, allTools, customTools);
+        //console.log(allTools);
         // Build messages array with system prompt and conversation history
         const messages: any[] = [
             {
@@ -488,7 +485,7 @@ Core Capabilities:
 
 Selected Tool Context: ${selectedTool || 'General Assistant'}
 User ID: ${userId}
-Available Tools: ${isSlideRequest ? 'Research + Presentation Tools' : 'Research Tools Only'}
+Available Tools: Research + Presentation + Google Workspace Tools
 
 🎯 REMEMBER: Default to conversation. Only use tools when the user clearly requests an action, not information or explanation.
 
