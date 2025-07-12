@@ -105,7 +105,7 @@ const MessageBubble = ({ message, activeSlide, setActiveSlide, downloadAsPPT }: 
       )}
       
       <div className={clsx(
-        "p-4 rounded-2xl max-w-2xl",
+        "p-4 rounded-2xl max-w-2xl shadow",
         message.role === 'user'
           ? 'bg-blue-500 text-white rounded-br-lg'
           : 'bg-white text-gray-800 rounded-bl-lg shadow-sm border border-gray-100'
@@ -326,28 +326,21 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
 
     // Check if the prompt contains a spreadsheet URL
     const detectedSheetUrl = detectSpreadsheetUrl(prompt);
-    const isNewSpreadsheetConnection = detectedSheetUrl && validateSheetUrl(detectedSheetUrl) && !isSheetConnected;
-    
+    const detectedDocUrl = detectDocumentUrl(prompt);
+
+    // Always switch to the correct sidebar if a URL is detected
     if (detectedSheetUrl && validateSheetUrl(detectedSheetUrl)) {
       setSheetUrl(detectedSheetUrl);
       setSheetId(extractSheetId(detectedSheetUrl));
       setIsSheetConnected(true);
       setShowSpreadsheet(true);
-      // Hide document if it was showing
-      setShowDocument(false);
-    }
-
-    // Check if the prompt contains a Google Docs URL
-    const detectedDocUrl = detectDocumentUrl(prompt);
-    const isNewDocumentConnection = detectedDocUrl && validateDocUrl(detectedDocUrl) && !isDocConnected;
-    
-    if (detectedDocUrl && validateDocUrl(detectedDocUrl)) {
+      setShowDocument(false); // Always hide doc sidebar if spreadsheet is detected
+    } else if (detectedDocUrl && validateDocUrl(detectedDocUrl)) {
       setDocUrl(detectedDocUrl);
       setDocId(extractDocId(detectedDocUrl));
       setIsDocConnected(true);
       setShowDocument(true);
-      // Hide spreadsheet if it was showing
-      setShowSpreadsheet(false);
+      setShowSpreadsheet(false); // Always hide spreadsheet sidebar if doc is detected
     }
 
     const userMessage: Message = {
@@ -591,7 +584,7 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
         </div>
 
         {/* Input Area */}
-        <div className="border-t border-gray-200 bg-white p-4">
+        <div className="border-t border-gray-200 bg-white p-4 shadow-md">
           <div className="max-w-4xl mx-auto">
             <form onSubmit={handleSubmit} className="relative">
               <div className="flex items-end gap-3 bg-gray-50/50 rounded-2xl p-3 border border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
@@ -644,7 +637,7 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 h-full bg-white shadow-xl border-l border-gray-200 flex z-20"
+            className="fixed right-0 top-0 h-full bg-white shadow-2xl border-l border-gray-200 flex z-20"
             style={{ width: `${sidebarWidth}px` }}
           >
             {/* Resize Handle */}
@@ -702,7 +695,7 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 h-full bg-white shadow-xl border-l border-gray-200 flex z-20"
+            className="fixed right-0 top-0 h-full bg-white shadow-2xl border-l border-gray-200 flex z-20"
             style={{ width: `${sidebarWidth}px` }}
           >
             {/* Resize Handle */}
