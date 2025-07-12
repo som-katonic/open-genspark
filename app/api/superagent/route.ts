@@ -339,8 +339,7 @@ export async function POST(req: NextRequest) {
                 response: `📊 **Spreadsheet Connected!** I've successfully connected to your Google Sheet. What would you like to do with it? For example, you can ask me to:
 
 - "Summarize the key insights from this data"
-- "Create a chart showing sales by region"
-- "Find the average revenue per customer"`,
+`,
                 hasSlides: false,
             });
         }
@@ -381,7 +380,7 @@ export async function POST(req: NextRequest) {
             limit: 10
         });
         const get_google_docs_tools = await composio.tools.get(String(userId), {
-            tools: ['GOOGLEDOCS_GET_DOCUMENT_BY_ID']
+            tools: ['GOOGLEDOCS_GET_DOCUMENT_BY_ID','GOOGLEDOCS_UPDATE_DOCUMENT_MARKDOWN', 'GOOGLEDOCS_DELETE_CONTENT_RANGE']
         });
         const get_google_sheets_tools = await composio.tools.get(String(userId), {
             tools: ['GOOGLESHEETS_GET_SHEET_BY_ID']
@@ -424,6 +423,8 @@ This is a critical part of your function. Follow these rules precisely.
     - **Step 3: Use the Magic Word.** After creating the slide outline, you **MUST** end your *entire* message with the special command: **[SLIDES]**
 
 ---
+
+Updating google docs means updating the markdown of the document/ deleting all content and adding new content.
 `;
 
         // Build messages array with system prompt and conversation history
