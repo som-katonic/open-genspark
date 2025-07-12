@@ -122,13 +122,13 @@ export default function SignIn() {
         <div className="space-y-4">
           <h1 className="text-5xl font-bold text-white mb-2 min-h-[3.5rem]">
             <Typewriter 
-              text="Welcome to your Inbox"
+              text="Welcome to your Google Super Agent"
               speed={80}
               className="text-5xl font-bold text-white"
             />
           </h1>
           <p className="text-xl text-gray-400 max-w-md mx-auto">
-            Truly Agentic Email Interface, powered by Composio
+            powered by Composio
           </p>
         </div>
 
