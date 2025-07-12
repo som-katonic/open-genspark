@@ -255,7 +255,7 @@ async function initializeSlideGenerationTool() {
                     const { topic, slideCount, style } = input;
                     
                     const { object } = await generateObject({
-                        model: google('gemini-2.5-flash'),
+                        model: google('gemini-2.5-pro'),
                         schema: slideSchema,
                         prompt: `Create a professional presentation about "${topic}" with ${slideCount} slides using a ${style} style.
 
@@ -355,7 +355,7 @@ export async function POST(req: NextRequest) {
         if (isExplicitSlideRequest) {
             // Use the simplified slide generation with fixed templates
             const { object } = await generateObject({
-                model: google('gemini-2.5-flash'),
+                model: google('gemini-2.5-pro'),
                 schema: slideSchema,
                 prompt: `Create a professional presentation based on the following prompt: "${prompt}".
 
@@ -414,9 +414,12 @@ Generate substantial, professional content that demonstrates real expertise and 
 
         // Get both toolkit tools and custom tools
         const google_super_toolkit = await composio.tools.get(String(userId), {
-            toolkits: ['GOOGLESUPER']
+            toolkits: ['GOOGLESUPER'],
+            limit: 25
         });
-
+        const google_super_docs_toolkit = await composio.tools.get(String(userId), {
+            tools: ['GOOGLESUPER_INSERT_TEXT_ACTION', 'GOOGLESUPER_UPDATE_DOCUMENT_STYLE', 'GOOGLESUPER_GET_DOCUMENT_BY_ID'],
+        });
         const composio_search_toolkit = await composio.tools.get(String(userId), {
             toolkits: ['COMPOSIO_SEARCH']
         });
@@ -430,7 +433,7 @@ Generate substantial, professional content that demonstrates real expertise and 
         const isSlideRequest = selectedTool === 'slides' || 
                                /\b(presentation|slide|slides|ppt|powerpoint|deck)\b/i.test(prompt);
         
-        let allTools = Object.assign({}, google_super_toolkit, composio_search_toolkit, composio_toolkit);
+        let allTools = Object.assign({}, google_super_toolkit, google_super_docs_toolkit, composio_search_toolkit, composio_toolkit);
         
         if (isSlideRequest) {
             const customTools = await composio.tools.get(String(userId), {toolkits: [SLIDE_GENERATOR_TOOL]});
@@ -490,7 +493,7 @@ Available Tools: ${isSlideRequest ? 'Research + Presentation Tools' : 'Research 
 🎯 REMEMBER: Default to conversation. Only use tools when the user clearly requests an action, not information or explanation.
 
 Don't use Wait for connection action. For non google related actions, use Composio Tools.
-
+You can use get document by id to get the document and read it's content.
 `
             }
         ];

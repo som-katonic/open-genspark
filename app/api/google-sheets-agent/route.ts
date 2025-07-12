@@ -69,7 +69,7 @@ User's current question: ${message}
 ${conversationContext}`;
 
     const { text, finishReason } = await generateText({
-      model: google('gemini-2.5-flash'),
+      model: google('gemini-2.5-pro'),
       prompt: systemPrompt,
       maxSteps: 10,
       tools: tools,
