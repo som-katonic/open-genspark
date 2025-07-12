@@ -548,52 +548,6 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
           marginRight: (showSpreadsheet || showDocument) ? `${sidebarWidth}px` : '0px'
         }}
       >
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-              <FiStar className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <h1 className="text-lg font-semibold text-gray-900">Google Super Agent</h1>
-              <p className="text-sm text-gray-500">Powered by Composio</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2">
-            {/* Spreadsheet Toggle */}
-            {isSheetConnected && (
-              <button
-                onClick={() => {
-                  setShowSpreadsheet(!showSpreadsheet);
-                  if (!showSpreadsheet) setShowDocument(false); // Hide doc when showing sheet
-                }}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                {showSpreadsheet ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
-                {showSpreadsheet ? 'Hide Sheet' : 'Show Sheet'}
-              </button>
-            )}
-
-            {/* Document Toggle */}
-            {isDocConnected && (
-              <button
-                onClick={() => {
-                  setShowDocument(!showDocument);
-                  if (!showDocument) setShowSpreadsheet(false); // Hide sheet when showing doc
-                }}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                {showDocument ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
-                {showDocument ? 'Hide Doc' : 'Show Doc'}
-              </button>
-            )}
-            
-            <Button variant="ghost" size="icon">
-              <FiPlus className="w-5 h-5"/>
-            </Button>
-          </div>
-        </div>
 
         {/* Messages */}
         <div className="flex-1 overflow-hidden">
