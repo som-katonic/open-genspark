@@ -244,54 +244,42 @@ async function initializeSlideGenerationTool() {
         const tool = await composio.tools.createCustomTool({
             slug: SLIDE_GENERATOR_TOOL,
             name: 'Generate Presentation Slides',
-            description: 'Creates professional presentation slides on any topic with customizable count and style',
+            description: 'Creates a professional presentation based on provided content, with customizable slide count and style.',
             inputParams: z.object({
-                topic: z.string().describe('The topic or subject of the presentation'),
+                content: z.string().describe('The detailed content or data for the presentation. This should be a summary or the full text from which to generate slides.'),
                 slideCount: z.number().min(1).max(20).default(5).describe('Number of slides to generate (1-20)'),
-                style: z.enum(['professional', 'creative', 'minimal', 'academic']).default('professional').describe("The visual style for the presentation. MUST be one of the following: 'professional', 'creative', 'minimal', 'academic'.")
+                style: z.enum(['professional', 'creative', 'minimal', 'academic']).default('professional').describe("The visual style for the presentation.")
             }),
             execute: async (input: any, connectionConfig?: any) => {
                 try {
-                    const { topic, slideCount, style } = input;
+                    const { content, slideCount, style } = input;
                     
                     const { object } = await generateObject({
                         model: google('gemini-2.5-pro'),
                         schema: slideSchema,
-                        prompt: `Create a professional presentation about "${topic}" with ${slideCount} slides using a ${style} style.
+                        prompt: `Create a professional presentation with ${slideCount} slides using a ${style} style, based on the following content:
+
+---
+${content}
+---
 
 CRITICAL CONTENT RULES:
+- Base the presentation ENTIRELY on the provided content. Do not add outside information.
 - NEVER use placeholder text like "heading", "content", "bullet point", etc.
-- ALWAYS write actual, meaningful, specific content about the topic
-- Each slide must have substantive, valuable information
-- Use concrete examples, facts, and insights
-- Make every word count and add value
+- ALWAYS write actual, meaningful, specific content derived from the provided text.
+- Each slide must have substantive, valuable information from the source content.
 
 SLIDE STRUCTURE:
-- Slide 1: Title slide with compelling title and descriptive subtitle about the topic
-- Slides 2-${slideCount-1}: Content slides with specific information, insights, or analysis
-- Slide ${slideCount}: Strong conclusion with key takeaways and next steps
-
-CONTENT QUALITY STANDARDS:
-- Write as if presenting to industry experts
-- Include specific details, statistics, or real-world examples when relevant
-- Use active voice and compelling language
-- Each bullet point should be a complete, valuable insight
-- Avoid generic statements - be specific to the "${topic}" topic
+- Slide 1: Title slide with a compelling title and descriptive subtitle that summarizes the content.
+- Slides 2-${slideCount-1}: Content slides with specific information, insights, or analysis from the source.
+- Slide ${slideCount}: Strong conclusion with key takeaways and next steps based on the source.
 
 SLIDE TYPES:
-- Use "title" type for the first slide only
-- Use "bullet" type for slides with multiple key points (3-5 bullets max)
-- Use "content" type for slides with detailed explanations or analysis
+- Use "title" type for the first slide only.
+- Use "bullet" for slides with multiple key points (3-5 bullets max).
+- Use "content" for slides with detailed explanations.
 
-Example of GOOD content for a slide about AI:
-Title: "Machine Learning Applications in Healthcare"
-Content: "AI-powered diagnostic tools are reducing misdiagnosis rates by 23% in radiology departments, while predictive algorithms help identify at-risk patients 48 hours before critical events occur."
-
-Example of BAD content (DO NOT DO THIS):
-Title: "Heading"
-Content: "This slide contains content about the topic."
-
-Generate substantial, professional content that demonstrates expertise in "${topic}".`,
+Generate substantial, professional content that accurately reflects the provided text.`,
                     });
 
                     // Add HTML to each slide using the fixed template
@@ -304,9 +292,9 @@ Generate substantial, professional content that demonstrates expertise in "${top
                         data: {
                             slides: slidesWithHTML,
                             slideCount: slidesWithHTML.length,
-                            topic,
+                            topic: slidesWithHTML[0]?.title || 'Generated Presentation',
                             style,
-                            message: `Successfully generated ${slidesWithHTML.length} slides for "${topic}" in ${style} style`
+                            message: `Successfully generated ${slidesWithHTML.length} slides.`
                         },
                         error: null,
                         successful: true
@@ -335,7 +323,7 @@ Generate substantial, professional content that demonstrates expertise in "${top
 
 export async function POST(req: NextRequest) {
     try {
-        const { prompt, selectedTool, conversationHistory, userId } = await req.json();
+        const { prompt, selectedTool, conversationHistory, userId, sheetUrl, docUrl } = await req.json();
         
         // Validate userId is provided
         if (!userId) {
@@ -344,71 +332,38 @@ export async function POST(req: NextRequest) {
                 { status: 401 }
             );
         }
+
+        // If a new sheet is connected, ask the user what to do next.
+        if (sheetUrl && !conversationHistory.some((m: any) => m.content.includes('Spreadsheet Connected'))) {
+            return NextResponse.json({
+                response: `📊 **Spreadsheet Connected!** I've successfully connected to your Google Sheet. What would you like to do with it? For example, you can ask me to:
+
+- "Summarize the key insights from this data"
+- "Create a chart showing sales by region"
+- "Find the average revenue per customer"`,
+                hasSlides: false,
+            });
+        }
+
+        // If a new doc is connected, ask the user what to do next.
+        if (docUrl && !conversationHistory.some((m: any) => m.content.includes('Document Connected'))) {
+            return NextResponse.json({
+                response: `📄 **Document Connected!** I've successfully connected to your Google Doc. What would you like to do with it? For example, you can ask me to:
+
+- "Summarize this document"
+- "Extract the key action items"
+- "Check for grammatical errors"`,
+                hasSlides: false,
+            });
+        }
         
         // Initialize the custom slide generation tool
         await initializeSlideGenerationTool();
         
-        // --- RESTORED SLIDE GENERATION LOGIC ---
-        // Detect if the prompt is explicitly asking for a presentation.
-        const isExplicitSlideRequest = /\b(presentation|slide|slides|ppt|powerpoint|deck|create|make|generate)\b/i.test(prompt);
+        // --- REMOVED SLIDE GENERATION LOGIC ---
+        // The old logic was too simple and has been removed.
+        // The main agent will now handle slide generation requests using the upgraded tool.
         
-        if (isExplicitSlideRequest) {
-            // Use the simplified slide generation with fixed templates
-            const { object } = await generateObject({
-                model: google('gemini-2.5-pro'),
-                schema: slideSchema,
-                prompt: `Create a professional presentation based on the following prompt: "${prompt}".
-
-CRITICAL CONTENT RULES:
-- NEVER use placeholder text like "heading", "content", "bullet point", etc.
-- ALWAYS write actual, meaningful, specific content related to the user's request
-- Each slide must have substantive, valuable information
-- Use concrete examples, facts, and insights
-- Make every word count and add value
-
-SLIDE STRUCTURE:
-- Slide 1: Title slide with compelling title and descriptive subtitle
-- Slides 2-4: Content slides with specific information, insights, or analysis
-- Slide 5: Strong conclusion with key takeaways and next steps
-
-CONTENT QUALITY STANDARDS:
-- Write as if presenting to industry experts
-- Include specific details, statistics, or real-world examples when relevant
-- Use active voice and compelling language
-- Each bullet point should be a complete, valuable insight
-- Avoid generic statements - be specific to the user's request
-
-SLIDE TYPES:
-- Use "title" type for the first slide only
-- Use "bullet" type for slides with multiple key points (3-5 bullets max)
-- Use "content" type for slides with detailed explanations or analysis
-
-Example of GOOD content:
-Title: "Machine Learning Applications in Healthcare"
-Content: "AI-powered diagnostic tools are reducing misdiagnosis rates by 23% in radiology departments, while predictive algorithms help identify at-risk patients 48 hours before critical events occur."
-
-Example of BAD content (DO NOT DO THIS):
-Title: "Heading"
-Content: "This slide contains content about the topic."
-
-Generate substantial, professional content that demonstrates real expertise and value.`
-            });
-
-            // Add HTML to each slide using the fixed template
-            const slidesWithHTML = object.slides.map(slide => ({
-                ...slide,
-                html: generateSlideHTML(slide, 'professional')
-            }));
-
-            return NextResponse.json({
-                response: `I've created a new presentation for you. You can see a preview in the chat.`,
-                slides: slidesWithHTML,
-                hasSlides: true,
-                userId: userId
-            });
-        }
-        // --- END OF RESTORED LOGIC ---
-
         // Get comprehensive toolkits based on selected tool or default to all
         let toolkits = ['GOOGLESUPER', 'COMPOSIO_SEARCH'];
         
@@ -416,10 +371,13 @@ Generate substantial, professional content that demonstrates real expertise and 
         // Get both toolkit tools and custom tools
         const google_super_toolkit = await composio.tools.get(String(userId), {
             toolkits: ['GOOGLESUPER'],
-            limit: 25
+            limit: 10
         });
-        const google_super_docs_toolkit = await composio.tools.get(String(userId), {
-            tools: ['GOOGLESUPER_INSERT_TEXT_ACTION', 'GOOGLESUPER_UPDATE_DOCUMENT_STYLE', 'GOOGLESUPER_GET_DOCUMENT_BY_ID'],
+        const google_sheet_tools = await composio.tools.get(String(userId), {
+            toolkits: ['GOOGLESHEETS'],
+        });
+        const google_docs_tools = await composio.tools.get(String(userId), {
+            toolkits: ['GOOGLEDOCS'],
         });
         const composio_search_toolkit = await composio.tools.get(String(userId), {
             toolkits: ['COMPOSIO_SEARCH']
@@ -431,17 +389,15 @@ Generate substantial, professional content that demonstrates real expertise and 
 
 
         // Always include slide generation tool - available for all requests
-        let allTools = Object.assign({}, google_super_toolkit, google_super_docs_toolkit, composio_search_toolkit, composio_toolkit);
+        let allTools = Object.assign({},google_sheet_tools, google_docs_tools, composio_search_toolkit, composio_toolkit);
         
         // Always add the slide generation tool
         const customTools = await composio.tools.get(String(userId), {toolkits: [SLIDE_GENERATOR_TOOL]});
         allTools = Object.assign({}, allTools, customTools);
         //console.log(allTools);
-        // Build messages array with system prompt and conversation history
-        const messages: any[] = [
-            {
-                role: 'system',
-                content: `You are Google Super Agent Powered by Composio - an advanced AI assistant that can perform real-world tasks using various tools and integrations.
+        
+        let systemPrompt = `You are Google Super Agent Powered by Composio - an advanced AI assistant that can perform real-world tasks using various tools and integrations.
+When given google sheet, first get sheet names based on spreadsheet id then use batch get by data filter to get the data from the sheet.
 
 🎯 PRIMARY DIRECTIVE: BE CONVERSATIONAL FIRST, USE TOOLS ONLY WHEN EXPLICITLY REQUESTED
 
@@ -491,7 +447,23 @@ Available Tools: Research + Presentation + Google Workspace Tools
 
 Don't use Wait for connection action. For non google related actions, use Composio Tools.
 You can use get document by id to get the document and read it's content.
-`
+
+Use Get Document By ID only to get Google Docs document, not anything else.
+`;
+
+        if (sheetUrl) {
+            systemPrompt += `\n\n**IMPORTANT CONTEXT:** A Google Sheet is connected at the following URL: ${sheetUrl}. Prioritize using the data from this sheet to answer user questions. When the user asks for information, assume they are asking about the content of this spreadsheet unless they specify otherwise. If a user requests a presentation from this sheet, you MUST first use the spreadsheet tools to read the relevant data, and then you MUST call the 'GENERATE_PRESENTATION_SLIDES' tool with the retrieved data as the 'content' parameter.`;
+        }
+
+        if (docUrl) {
+            systemPrompt += `\n\n**IMPORTANT CONTEXT:** A Google Doc is connected at the following URL: ${docUrl}. Prioritize using the data from this document to answer user questions. When the user asks for information, assume they are asking about the content of this document unless they specify otherwise. If a user requests a presentation from this document, you MUST first use the document tools to read the content, and then you MUST call the 'GENERATE_PRESENTATION_SLIDES' tool with the retrieved data as the 'content' parameter.`;
+        }
+
+        // Build messages array with system prompt and conversation history
+        const messages: any[] = [
+            {
+                role: 'system',
+                content: systemPrompt
             }
         ];
 
@@ -506,58 +478,33 @@ You can use get document by id to get the document and read it's content.
             content: prompt
         });
 
-        const response = await generateText({
+        const { text, toolCalls, toolResults } = await generateText({
             model: google('gemini-2.5-pro'),
-            messages: messages,
+            system: systemPrompt,
+            messages,
             tools: allTools,
-            toolChoice: 'auto',
             maxSteps: 50,
-            temperature: 0.7
         });
 
-        // Extract slide data from tool execution results
-        let slideData = null;
-        let hasSlides = false;
-        
-        if (response.steps) {
-            for (const step of response.steps) {
-                if (step.toolCalls && step.toolResults) {
-                    for (let i = 0; i < step.toolCalls.length; i++) {
-                        const toolCall = step.toolCalls[i];
-                        const toolResult = step.toolResults[i];
-                        
-                        if (toolCall.toolName === SLIDE_GENERATOR_TOOL && toolResult) {
-                            try {
-                                const result = toolResult as any;
-                                
-                                // Access the nested result.data.slides
-                                if (result.result && result.result.data && result.result.data.slides) {
-                                    slideData = result.result.data.slides;
-                                    hasSlides = true;
-                                    break;
-                                }
-                            } catch (error) {
-                                console.error('Error extracting slide data:', error);
-                            }
-                        }
-                    }
-                }
-                if (hasSlides) break;
-            }
+        const slideExecution = toolResults.find(result => result.toolName === SLIDE_GENERATOR_TOOL);
+
+        if (slideExecution) {
+            const slideData = slideExecution.result.data.slides;
+            return NextResponse.json({
+                response: text,
+                slides: slideData,
+                hasSlides: true,
+            });
         }
 
+
         return NextResponse.json({
-            response: response.text,
-            selectedTool,
-            finishReason: response.finishReason,
-            toolsUsed: response.steps?.length || 0,
-            slideData,
-            hasSlides,
-            userId: userId
+            response: text,
+            hasSlides: false,
         });
-        
+
     } catch (error) {
-        console.error('SuperAgent Error:', error);
+        console.error('Connection error:', error);
         return NextResponse.json(
             { error: 'Failed to process your request. Please try again.' },
             { status: 500 }

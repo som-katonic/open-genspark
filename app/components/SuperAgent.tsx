@@ -365,8 +365,8 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
           selectedTool: selectedTool.id,
           conversationHistory: messages,
           userId: userId,
-          sheetUrl: isSheetConnected ? sheetUrl : undefined,
-          docUrl: isDocConnected ? docUrl : undefined
+          sheetUrl: detectedSheetUrl || (isSheetConnected ? sheetUrl : undefined),
+          docUrl: detectedDocUrl || (isDocConnected ? docUrl : undefined),
         }),
       });
 
@@ -374,25 +374,9 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
       
       const data = await response.json();
 
-      // If this was just a new connection, show connection message instead of response
-      if (isNewSpreadsheetConnection) {
-        const connectionMessage: Message = {
-          id: `connection-${Date.now()}`,
-          role: 'assistant',
-          content: `📊 **Spreadsheet Connected!** I've successfully connected to your Google Sheets and can now help you analyze your data, create visualizations, or answer questions about your spreadsheet. The sheet is now visible in the sidebar.`,
-          timestamp: new Date(),
-        };
-        
-        setMessages(prev => [...prev, connectionMessage]);
-      } else if (isNewDocumentConnection) {
-        const connectionMessage: Message = {
-          id: `connection-${Date.now()}`,
-          role: 'assistant',
-          content: `📄 **Document Connected!** I've successfully connected to your Google Doc and can now help you analyze, edit, or answer questions about your document. The document is now visible in the sidebar.`,
-          timestamp: new Date(),
-        };
-        
-        setMessages(prev => [...prev, connectionMessage]);
+      // If this was a new document connection, the backend now handles the response.
+      if (isNewDocumentConnection) {
+        // This is now handled by the backend
       } else {
         // Show normal response for non-spreadsheet messages
         const assistantMessage: Message = {

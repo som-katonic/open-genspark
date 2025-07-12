@@ -1,145 +1,144 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FlowButton } from "../../components/ui/flow-button";
+import { FiCheckCircle, FiLoader, FiExternalLink } from 'react-icons/fi';
 import { Meteors } from "../../components/ui/meteors";
 import { Typewriter } from "../../components/ui/typewriter-text";
-import { parseCookies } from '../../lib/utils';
+
+type ConnectionStatus = 'disconnected' | 'connecting' | 'connected';
 
 export default function SignIn() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [sheetsStatus, setSheetsStatus] = useState<ConnectionStatus>('disconnected');
+  const [docsStatus, setDocsStatus] = useState<ConnectionStatus>('disconnected');
 
-  // Check for auth success from URL params
   useEffect(() => {
-    const cookies = parseCookies();
-    const userId = cookies['zeroemail_user_id'];
-    const urlParams = new URLSearchParams(window.location.search);
-
-    if (userId || urlParams.get('auth') === 'success') {
-      window.location.href = '/';
+    if (sheetsStatus === 'connected' && docsStatus === 'connected') {
+      // Both are connected, redirect to the main app
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 1000); // Wait a second to show success
     }
-  }, []);
+  }, [sheetsStatus, docsStatus]);
 
-  const handleComposioSignIn = async () => {
-    setIsLoading(true);
+  const handleSignIn = async (platform: 'google-sheet' | 'google-docs') => {
+    const setStatus = platform === 'google-sheet' ? setSheetsStatus : setDocsStatus;
+    setStatus('connecting');
     
     try {
-      const cookies = parseCookies();
-      const userId = cookies['zeroemail_user_id'];
-      const response = await fetch("/api/connecting-email", {
+      // 1. Initiate connection
+      const initiateResponse = await fetch(`/api/connection/${platform}`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "initiate",
-          platform: "gmail",
-          user_id: userId
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "initiate" }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to initiate connection");
-      }
+      if (!initiateResponse.ok) throw new Error(`Failed to initiate ${platform} connection`);
+      const initiateData = await initiateResponse.json();
 
-      const data = await response.json();
-      
-      if (data.success && data.alreadyConnected) {
-        window.location.href = '/';
+      if (initiateData.success && initiateData.alreadyConnected) {
+        setStatus('connected');
         return;
       }
-      if (data.success && data.redirectUrl) {
-        // Open OAuth window
-        const oauthWindow = window.open(
-          data.redirectUrl,
-          'composio-oauth',
-          'width=600,height=700,scrollbars=yes,resizable=yes'
-        );
 
-        if (!oauthWindow) {
-          throw new Error('Failed to open OAuth window. Please check your popup blocker.');
+      if (!initiateData.success || !initiateData.redirectUrl) {
+        throw new Error(`Failed to get redirect URL for ${platform}`);
+      }
+
+      const { redirectUrl, connectionId } = initiateData;
+
+      // 2. Open OAuth window
+      const oauthWindow = window.open(redirectUrl, 'oauth-window', 'width=600,height=700');
+      if (!oauthWindow) {
+        alert('Please allow pop-ups for this site to sign in.');
+        setStatus('disconnected');
+        return;
+      }
+
+      // 3. Poll for connection status
+      const pollInterval = setInterval(async () => {
+        if (oauthWindow.closed) {
+          clearInterval(pollInterval);
+          setStatus('disconnected'); // Assume user cancelled
+          return;
         }
 
-        // Poll for OAuth completion
-        const pollInterval = setInterval(async () => {
-          // Check if window is closed
-          if (oauthWindow.closed) {
+        try {
+          const statusResponse = await fetch(`/api/connection/${platform}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'check_status', connectionId }),
+          });
+          const statusData = await statusResponse.json();
+
+          if (statusData.success && statusData.isActive) {
             clearInterval(pollInterval);
-            await checkConnectionStatus(data.connectionId);
-            return;
-          }
-
-          // Check connection status periodically
-          try {
-            const statusResponse = await fetch(`/api/connecting-email?connectionId=${data.connectionId}`);
-            const statusData = await statusResponse.json();
-            
-            if (statusData.success && statusData.isActive) {
-              clearInterval(pollInterval);
-              oauthWindow.close();
-              // Redirect to main app
-              window.location.href = '/';
-            }
-          } catch (pollError) {
-            console.error('Status check error:', pollError);
-          }
-        }, 2000);
-
-        // Clean up interval after 5 minutes
-        setTimeout(() => {
-          clearInterval(pollInterval);
-          if (!oauthWindow.closed) {
             oauthWindow.close();
+            setStatus('connected');
           }
-        }, 300000);
-      }
+        } catch (error) {
+          console.error(`Error polling ${platform} status:`, error);
+        }
+      }, 2000);
+
     } catch (error) {
-      console.error("Error connecting to Composio:", error);
-    } finally {
-      setIsLoading(false);
+      console.error(`Error signing in with ${platform}:`, error);
+      setStatus('disconnected');
+      alert(`An error occurred during sign-in: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
-  const checkConnectionStatus = async (connectionId: string) => {
-    try {
-      const response = await fetch(`/api/connecting-email?connectionId=${connectionId}`);
+  const AuthButton = ({ platform, status }: { platform: 'google-sheet' | 'google-docs', status: ConnectionStatus }) => {
+    const platformName = platform === 'google-sheet' ? 'Google Sheets' : 'Google Docs';
+    const isLoading = status === 'connecting';
+    const isConnected = status === 'connected';
 
-      const data = await response.json();
-      
-      if (data.success && data.isActive) {
-        window.location.href = '/';
-      }
-    } catch (error) {
-      console.error('Status check error:', error);
-    }
+    return (
+      <button
+        onClick={() => handleSignIn(platform)}
+        disabled={isLoading || isConnected}
+        className="w-full max-w-xs px-6 py-3 text-lg font-semibold text-white bg-gray-800 border-2 border-gray-600 rounded-lg shadow-lg hover:bg-gray-700 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-3"
+      >
+        {isLoading && <FiLoader className="animate-spin" />}
+        {isConnected && <FiCheckCircle className="text-green-400" />}
+        <span>{isConnected ? `${platformName} Connected` : `Sign in with ${platformName}`}</span>
+        {!isConnected && !isLoading && <FiExternalLink />}
+      </button>
+    );
   };
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center overflow-hidden relative">
+    <div className="min-h-screen bg-black flex items-center justify-center overflow-hidden relative text-white">
       <Meteors number={30} />
       
-      <div className="relative z-10 text-center space-y-8 p-8">
+      <div className="relative z-10 text-center space-y-12 p-8 max-w-2xl w-full">
         <div className="space-y-4">
-          <h1 className="text-5xl font-bold text-white mb-2 min-h-[3.5rem]">
+          <h1 className="text-5xl font-bold mb-2">
             <Typewriter 
               text="Welcome to Google Super Agent"
               speed={80}
-              className="text-5xl font-bold text-white"
+              className="text-5xl font-bold"
             />
           </h1>
-          <p className="text-xl text-gray-400 max-w-md mx-auto">
+          <p className="text-xl text-gray-400">
             powered by Composio
           </p>
         </div>
 
-        <div className="pt-8 flex justify-center">
-          <div onClick={handleComposioSignIn} className={isLoading ? "pointer-events-none opacity-50" : ""}>
-            <FlowButton 
-              text={isLoading ? "Connecting..." : "Sign in with Composio"}
-            />
+        <div className="bg-gray-900/50 backdrop-blur-sm border border-gray-700 rounded-xl p-8 space-y-6">
+          <h2 className="text-2xl font-semibold">Connect Your Google Account</h2>
+          <p className="text-gray-400">Please connect both Google Sheets and Google Docs to continue.</p>
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6">
+            <AuthButton platform="google-sheet" status={sheetsStatus} />
+            <AuthButton platform="google-docs" status={docsStatus} />
           </div>
         </div>
 
+        {sheetsStatus === 'connected' && docsStatus === 'connected' && (
+          <div className="flex items-center justify-center space-x-3 text-green-400 text-lg">
+            <FiCheckCircle />
+            <span>All set! Redirecting you to the app...</span>
+          </div>
+        )}
       </div>
     </div>
   );
