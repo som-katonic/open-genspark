@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   FiSend, FiPaperclip, FiSliders, FiGrid, FiMessageSquare, FiStar,
   FiImage, FiVideo, FiSearch, FiPhone, FiDownload, FiArrowRight,
-  FiBox, FiPlus, FiChevronDown, FiLoader
+  FiBox, FiPlus, FiChevronDown, FiLoader, FiLink, FiCheck, FiX, FiEye, FiEyeOff
 } from 'react-icons/fi';
 import { AnimatePresence, motion } from 'framer-motion';
 import { clsx } from 'clsx';
@@ -38,17 +38,13 @@ interface SuperAgentProps {
 }
 
 const agentTools = [
-  { id: 'slides', name: 'AI Slides', icon: FiSliders, color: 'text-orange-500' },
-  { id: 'sheets', name: 'AI Sheets', icon: FiGrid, color: 'text-green-500' },
-  { id: 'docs', name: 'AI Docs', icon: FiMessageSquare, color: 'text-blue-500', isNew: true },
-  { id: 'pods', name: 'AI Pods', icon: FiStar, color: 'text-purple-500', isNew: true },
-  { id: 'chat', name: 'AI Chat', icon: FiMessageSquare, color: 'text-sky-500' },
-  { id: 'image', name: 'AI Image', icon: FiImage, color: 'text-pink-500' },
-  { id: 'video', name: 'AI Video', icon: FiVideo, color: 'text-red-500' },
-  { id: 'research', name: 'Deep Research', icon: FiSearch, color: 'text-indigo-500' },
-  { id: 'call', name: 'Call For Me', icon: FiPhone, color: 'text-rose-500' },
-  { id: 'download', name: 'Download For Me', icon: FiDownload, color: 'text-teal-500' },
-  { id: 'agents', name: 'All Agents', icon: FiStar, color: 'text-gray-500' },
+  { id: 'general', name: 'General Assistant', icon: FiMessageSquare },
+  { id: 'slides', name: 'Presentation Creator', icon: FiSliders },
+  { id: 'search', name: 'Web Search', icon: FiSearch },
+  { id: 'images', name: 'Image Generator', icon: FiImage },
+  { id: 'videos', name: 'Video Creator', icon: FiVideo },
+  { id: 'calls', name: 'Phone Calls', icon: FiPhone },
+  { id: 'files', name: 'File Manager', icon: FiPaperclip },
 ];
 
 const WelcomeScreen = ({ onPromptSelect }: { onPromptSelect: (prompt: string) => void }) => {
@@ -165,7 +161,7 @@ const MessageBubble = ({ message, activeSlide, setActiveSlide, downloadAsPPT }: 
                     scale: { duration: 0.4 },
                     y: { duration: 0.4 }
                   }}
-                  className="w-full max-h-106 bg-white rounded-lg overflow-y-auto overflow-x-hidden"
+                  className="w-full max-h-96 bg-white rounded-lg overflow-y-auto overflow-x-hidden"
                   style={{ minHeight: '300px' }}
                 >
                   {message.slideData[activeSlide].html ? (
@@ -249,7 +245,68 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
   const [currentSlides, setCurrentSlides] = useState<Slide[]>([]);
   const [activeSlide, setActiveSlide] = useState(0);
 
+  // Spreadsheet state
+  const [sheetUrl, setSheetUrl] = useState('');
+  const [sheetId, setSheetId] = useState('');
+  const [isSheetConnected, setIsSheetConnected] = useState(false);
+  const [showSpreadsheet, setShowSpreadsheet] = useState(false);
+  
+  // Google Docs state
+  const [docUrl, setDocUrl] = useState('');
+  const [docId, setDocId] = useState('');
+  const [isDocConnected, setIsDocConnected] = useState(false);
+  const [showDocument, setShowDocument] = useState(false);
+  
+  const [sidebarWidth, setSidebarWidth] = useState(500); // Default wider width
+  const [isResizing, setIsResizing] = useState(false);
+
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Spreadsheet helper functions
+  const validateSheetUrl = (url: string): boolean => {
+    const googleSheetsRegex = /^https:\/\/docs\.google\.com\/spreadsheets\/d\/[a-zA-Z0-9-_]+/;
+    return googleSheetsRegex.test(url);
+  };
+
+  const extractSheetId = (url: string): string => {
+    const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    return match ? match[1] : '';
+  };
+
+  const getEmbedUrl = (url: string): string => {
+    if (!url) return '';
+    const id = extractSheetId(url);
+    return `https://docs.google.com/spreadsheets/d/${id}/edit?usp=sharing&widget=true&headers=false`;
+  };
+
+  const detectSpreadsheetUrl = (text: string): string | null => {
+    const googleSheetsRegex = /https:\/\/docs\.google\.com\/spreadsheets\/d\/[a-zA-Z0-9-_]+[^\s]*/g;
+    const match = text.match(googleSheetsRegex);
+    return match ? match[0] : null;
+  };
+
+  // Google Docs helper functions
+  const validateDocUrl = (url: string): boolean => {
+    const googleDocsRegex = /^https:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9-_]+/;
+    return googleDocsRegex.test(url);
+  };
+
+  const extractDocId = (url: string): string => {
+    const match = url.match(/\/document\/d\/([a-zA-Z0-9-_]+)/);
+    return match ? match[1] : '';
+  };
+
+  const getDocEmbedUrl = (url: string): string => {
+    if (!url) return '';
+    const id = extractDocId(url);
+    return `https://docs.google.com/document/d/${id}/edit?usp=sharing&widget=true&headers=false`;
+  };
+
+  const detectDocumentUrl = (text: string): string | null => {
+    const googleDocsRegex = /https:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9-_]+[^\s]*/g;
+    const match = text.match(googleDocsRegex);
+    return match ? match[0] : null;
+  };
 
   const handleExamplePrompt = (p: string) => {
     setPrompt(p);
@@ -259,6 +316,32 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!prompt.trim() || isLoading) return;
+
+    // Check if the prompt contains a spreadsheet URL
+    const detectedSheetUrl = detectSpreadsheetUrl(prompt);
+    const isNewSpreadsheetConnection = detectedSheetUrl && validateSheetUrl(detectedSheetUrl) && !isSheetConnected;
+    
+    if (detectedSheetUrl && validateSheetUrl(detectedSheetUrl)) {
+      setSheetUrl(detectedSheetUrl);
+      setSheetId(extractSheetId(detectedSheetUrl));
+      setIsSheetConnected(true);
+      setShowSpreadsheet(true);
+      // Hide document if it was showing
+      setShowDocument(false);
+    }
+
+    // Check if the prompt contains a Google Docs URL
+    const detectedDocUrl = detectDocumentUrl(prompt);
+    const isNewDocumentConnection = detectedDocUrl && validateDocUrl(detectedDocUrl) && !isDocConnected;
+    
+    if (detectedDocUrl && validateDocUrl(detectedDocUrl)) {
+      setDocUrl(detectedDocUrl);
+      setDocId(extractDocId(detectedDocUrl));
+      setIsDocConnected(true);
+      setShowDocument(true);
+      // Hide spreadsheet if it was showing
+      setShowSpreadsheet(false);
+    }
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -273,6 +356,7 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
     setIsLoading(true);
 
     try {
+      // Send to SuperAgent route (for new connections, don't show response)
       const response = await fetch('/api/superagent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -280,27 +364,51 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
           prompt: currentPrompt,
           selectedTool: selectedTool.id,
           conversationHistory: messages,
-          userId: userId
+          userId: userId,
+          sheetUrl: isSheetConnected ? sheetUrl : undefined,
+          docUrl: isDocConnected ? docUrl : undefined
         }),
       });
 
       if (!response.ok) throw new Error('API response was not ok.');
       
       const data = await response.json();
-      
-      const assistantMessage: Message = {
-        id: `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: data.response,
-        timestamp: new Date(),
-        slideData: data.slides || [],
-        hasSlides: data.hasSlides || false,
-      };
-      
-      setMessages(prev => [...prev, assistantMessage]);
-      if (data.slides && data.slides.length > 0) {
-        setCurrentSlides(data.slides);
-        setActiveSlide(0);
+
+      // If this was just a new connection, show connection message instead of response
+      if (isNewSpreadsheetConnection) {
+        const connectionMessage: Message = {
+          id: `connection-${Date.now()}`,
+          role: 'assistant',
+          content: `📊 **Spreadsheet Connected!** I've successfully connected to your Google Sheets and can now help you analyze your data, create visualizations, or answer questions about your spreadsheet. The sheet is now visible in the sidebar.`,
+          timestamp: new Date(),
+        };
+        
+        setMessages(prev => [...prev, connectionMessage]);
+      } else if (isNewDocumentConnection) {
+        const connectionMessage: Message = {
+          id: `connection-${Date.now()}`,
+          role: 'assistant',
+          content: `📄 **Document Connected!** I've successfully connected to your Google Doc and can now help you analyze, edit, or answer questions about your document. The document is now visible in the sidebar.`,
+          timestamp: new Date(),
+        };
+        
+        setMessages(prev => [...prev, connectionMessage]);
+      } else {
+        // Show normal response for non-spreadsheet messages
+        const assistantMessage: Message = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: data.response,
+          timestamp: new Date(),
+          slideData: data.slides || [],
+          hasSlides: data.hasSlides || false,
+        };
+        
+        setMessages(prev => [...prev, assistantMessage]);
+        if (data.slides && data.slides.length > 0) {
+          setCurrentSlides(data.slides);
+          setActiveSlide(0);
+        }
       }
 
     } catch (error) {
@@ -355,147 +463,319 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
     }
   };
 
-  return (
-    <div className={clsx('flex flex-col h-screen bg-gray-50', className)}>
-      {/* Header */}
-      <header className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-            <FiBox className="w-5 h-5 text-white"/>
-          </div>
-          <h1 className="text-lg font-semibold text-gray-800">Google Super Agent</h1>
-        </div>
-        <Button variant="ghost" size="icon">
-          <FiPlus className="w-5 h-5"/>
-        </Button>
-      </header>
+  const disconnectSpreadsheet = () => {
+    setIsSheetConnected(false);
+    setSheetUrl('');
+    setSheetId('');
+    setShowSpreadsheet(false);
+  };
 
-      {/* Chat Area */}
-      <div className="flex-1 overflow-hidden">
-        {messages.length === 0 ? (
-          <WelcomeScreen onPromptSelect={handleExamplePrompt} />
-        ) : (
-          <ChatMessageList smooth className="px-4 py-4">
-            {messages.map((message) => (
-              <MessageBubble
-                key={message.id}
-                message={message}
-                activeSlide={activeSlide}
-                setActiveSlide={setActiveSlide}
-                downloadAsPPT={downloadAsPPT}
-              />
-            ))}
-            
-            {isLoading && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-start gap-4 max-w-4xl"
+  const disconnectDocument = () => {
+    setIsDocConnected(false);
+    setDocUrl('');
+    setDocId('');
+    setShowDocument(false);
+  };
+
+  // Resize functionality
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    setIsResizing(true);
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      
+      const newWidth = window.innerWidth - e.clientX;
+      // Constrain width between 300px and 80% of window width
+      const minWidth = 300;
+      const maxWidth = window.innerWidth * 0.8;
+      const constrainedWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
+      
+      setSidebarWidth(constrainedWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    if (isResizing) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.addEventListener('mouseleave', handleMouseUp); // Also handle mouse leave
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+    
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener('mouseleave', handleMouseUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+  }, [isResizing]);
+
+  return (
+    <div className={clsx('flex h-screen bg-gray-50 relative', className)}>
+      {/* Main Chat Interface */}
+      <div 
+        className="flex-1 flex flex-col transition-all duration-300"
+        style={{ 
+          marginRight: (showSpreadsheet || showDocument) ? `${sidebarWidth}px` : '0px'
+        }}
+      >
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+              <FiStar className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-semibold text-gray-900">Google Super Agent</h1>
+              <p className="text-sm text-gray-500">Powered by Composio</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {/* Spreadsheet Toggle */}
+            {isSheetConnected && (
+              <button
+                onClick={() => {
+                  setShowSpreadsheet(!showSpreadsheet);
+                  if (!showSpreadsheet) setShowDocument(false); // Hide doc when showing sheet
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
               >
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <FiLoader className="w-4 h-4 text-white animate-spin" />
-                </div>
-                <div className="bg-white p-4 rounded-2xl rounded-bl-lg shadow-sm border border-gray-100">
-                  <div className="flex items-center gap-2 text-gray-500">
-                    <div className="flex gap-1">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
-                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
-                    </div>
-                    <span className="text-sm">Thinking...</span>
-                  </div>
-                </div>
-              </motion.div>
+                {showSpreadsheet ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+                {showSpreadsheet ? 'Hide Sheet' : 'Show Sheet'}
+              </button>
             )}
-          </ChatMessageList>
-        )}
+
+            {/* Document Toggle */}
+            {isDocConnected && (
+              <button
+                onClick={() => {
+                  setShowDocument(!showDocument);
+                  if (!showDocument) setShowSpreadsheet(false); // Hide sheet when showing doc
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                {showDocument ? <FiEyeOff className="w-4 h-4" /> : <FiEye className="w-4 h-4" />}
+                {showDocument ? 'Hide Doc' : 'Show Doc'}
+              </button>
+            )}
+            
+            <Button variant="ghost" size="icon">
+              <FiPlus className="w-5 h-5"/>
+            </Button>
+          </div>
+        </div>
+
+        {/* Messages */}
+        <div className="flex-1 overflow-hidden">
+          {messages.length === 0 ? (
+            <WelcomeScreen onPromptSelect={handleExamplePrompt} />
+          ) : (
+            <ChatMessageList smooth className="px-4 py-4">
+              {messages.map((message) => (
+                <MessageBubble
+                  key={message.id}
+                  message={message}
+                  activeSlide={activeSlide}
+                  setActiveSlide={setActiveSlide}
+                  downloadAsPPT={downloadAsPPT}
+                />
+              ))}
+              
+              {isLoading && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-start gap-4 max-w-4xl"
+                >
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                    <FiLoader className="w-4 h-4 text-white animate-spin" />
+                  </div>
+                  <div className="bg-white p-4 rounded-2xl rounded-bl-lg shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-2 text-gray-500">
+                      <div className="flex gap-1">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-100"></div>
+                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce delay-200"></div>
+                      </div>
+                      <span className="text-sm">Thinking...</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </ChatMessageList>
+          )}
+        </div>
+
+        {/* Input Area */}
+        <div className="border-t border-gray-200 bg-white p-4">
+          <div className="max-w-4xl mx-auto">
+            <form onSubmit={handleSubmit} className="relative">
+              <div className="flex items-end gap-3 bg-gray-50/50 rounded-2xl p-3 border border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
+                {/* Text Input */}
+                <div className="flex-1">
+                  <Textarea
+                    ref={inputRef}
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ask Google Super Agent anything or paste a Google Sheets/Docs URL..."
+                    className="min-h-[44px] max-h-32 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 text-center placeholder:text-center"
+                    rows={1}
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8">
+                    <FiPaperclip className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    type="submit" 
+                    disabled={isLoading || !prompt.trim()} 
+                    size="icon"
+                    className="h-8 w-8 bg-blue-500 hover:bg-blue-600"
+                  >
+                    {isLoading ? (
+                      <FiLoader className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <FiArrowRight className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </form>
+            
+            <p className="text-xs text-center text-gray-400 mt-2">
+              Google Super Agent can make mistakes. Consider checking important information.
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* Input Area */}
-      <div className="border-t border-gray-200 bg-white p-4">
-        <div className="max-w-4xl mx-auto">
-          <form onSubmit={handleSubmit} className="relative">
-            <div className="flex items-end gap-3 bg-gray-50/50 rounded-2xl p-3 border border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-              {/* Tool Selector */}
-              <div className="relative">
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsToolSelectorOpen(!isToolSelectorOpen)}
-                  className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-                >
-                  <selectedTool.icon className={clsx("w-4 h-4", selectedTool.color)} />
-                  <FiChevronDown className="w-3 h-3" />
-                </Button>
-                
-                <AnimatePresence>
-                  {isToolSelectorOpen && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: -10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      className="absolute bottom-full mb-2 w-64 bg-white border border-gray-200 rounded-lg shadow-xl z-10"
-                    >
-                      <div className="p-2">
-                        <p className="text-xs text-gray-400 px-2 mb-1">Tools</p>
-                        {agentTools.map(tool => (
-                          <button
-                            key={tool.id}
-                            type="button"
-                            onClick={() => { setSelectedTool(tool); setIsToolSelectorOpen(false); }}
-                            className="w-full flex items-center gap-3 p-2 text-left text-sm text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
-                          >
-                            <tool.icon className={clsx("w-4 h-4", tool.color)} />
-                            <span>{tool.name}</span>
-                            {tool.isNew && <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full">New</span>}
-                          </button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+      {/* Spreadsheet Sidebar */}
+      <AnimatePresence>
+        {showSpreadsheet && isSheetConnected && (
+          <motion.div
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed right-0 top-0 h-full bg-white shadow-xl border-l border-gray-200 flex z-20"
+            style={{ width: `${sidebarWidth}px` }}
+          >
+            {/* Resize Handle */}
+            <div
+              className={clsx(
+                "w-2 h-full bg-gray-100 hover:bg-gray-200 cursor-col-resize flex items-center justify-center group border-r border-gray-200 transition-colors",
+                isResizing && "bg-blue-200"
+              )}
+              onMouseDown={handleMouseDown}
+            >
+              <div className="w-0.5 h-8 bg-gray-400 group-hover:bg-gray-600 transition-colors"></div>
+            </div>
+
+            {/* Sidebar Content */}
+            <div className="flex-1 flex flex-col">
+              {/* Spreadsheet Header */}
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-lg font-semibold text-gray-900">Connected Spreadsheet</h2>
+                  <button
+                    onClick={disconnectSpreadsheet}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <FiX className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-green-600">
+                  <FiCheck className="w-4 h-4" />
+                  <span>Connected to Google Sheets</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1 truncate">
+                  {sheetUrl}
+                </p>
               </div>
 
-              {/* Text Input */}
-              <div className="flex-1">
-                <Textarea
-                  ref={inputRef}
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                                        placeholder="Ask Google Super Agent anything..."
-                  className="min-h-[44px] max-h-32 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 text-center placeholder:text-center"
-                  rows={1}
+              {/* Spreadsheet View */}
+              <div className="flex-1 bg-gray-50">
+                <iframe
+                  src={getEmbedUrl(sheetUrl)}
+                  className="w-full h-full border-0"
+                  title="Google Sheets"
+                  allow="fullscreen"
                 />
               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-              {/* Action Buttons */}
-              <div className="flex items-center gap-2">
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8">
-                  <FiPaperclip className="w-4 h-4" />
-                </Button>
-                <Button 
-                  type="submit" 
-                  disabled={isLoading || !prompt.trim()} 
-                  size="icon"
-                  className="h-8 w-8 bg-blue-500 hover:bg-blue-600"
-                >
-                  {isLoading ? (
-                    <FiLoader className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <FiArrowRight className="w-4 h-4" />
-                  )}
-                </Button>
+      {/* Google Docs Sidebar */}
+      <AnimatePresence>
+        {showDocument && isDocConnected && (
+          <motion.div
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+            className="fixed right-0 top-0 h-full bg-white shadow-xl border-l border-gray-200 flex z-20"
+            style={{ width: `${sidebarWidth}px` }}
+          >
+            {/* Resize Handle */}
+            <div
+              className={clsx(
+                "w-2 h-full bg-gray-100 hover:bg-gray-200 cursor-col-resize flex items-center justify-center group border-r border-gray-200 transition-colors",
+                isResizing && "bg-blue-200"
+              )}
+              onMouseDown={handleMouseDown}
+            >
+              <div className="w-0.5 h-8 bg-gray-400 group-hover:bg-gray-600 transition-colors"></div>
+            </div>
+
+            {/* Sidebar Content */}
+            <div className="flex-1 flex flex-col">
+              {/* Document Header */}
+              <div className="p-4 border-b border-gray-200">
+                <div className="flex items-center justify-between mb-2">
+                  <h2 className="text-lg font-semibold text-gray-900">Connected Document</h2>
+                  <button
+                    onClick={disconnectDocument}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <FiX className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-blue-600">
+                  <FiCheck className="w-4 h-4" />
+                  <span>Connected to Google Docs</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1 truncate">
+                  {docUrl}
+                </p>
+              </div>
+
+              {/* Document View */}
+              <div className="flex-1 bg-gray-50">
+                <iframe
+                  src={getDocEmbedUrl(docUrl)}
+                  className="w-full h-full border-0"
+                  title="Google Docs"
+                  allow="fullscreen"
+                />
               </div>
             </div>
-          </form>
-          
-          <p className="text-xs text-center text-gray-400 mt-2">
-            Google Super Agent can make mistakes. Consider checking important information.
-          </p>
-        </div>
-      </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 } 
