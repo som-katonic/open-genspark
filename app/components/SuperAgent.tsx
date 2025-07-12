@@ -164,14 +164,21 @@ const MessageBubble = ({ message, activeSlide, setActiveSlide, downloadAsPPT }: 
                   className="w-full max-h-96 bg-white rounded-lg overflow-y-auto overflow-x-hidden"
                   style={{ minHeight: '300px' }}
                 >
-                  {message.slideData[activeSlide].html ? (
+                  {message.slideData[activeSlide] && message.slideData[activeSlide].html ? (
                     <div 
                       className="w-full h-full p-4"
                       dangerouslySetInnerHTML={{ __html: message.slideData[activeSlide].html! }}
                     />
                   ) : (
                     <div className="p-4">
-                      <SlidePreview slide={message.slideData[activeSlide]} index={activeSlide} isSelected={true} onClick={()=>{}} />
+                      {message.slideData[activeSlide] ? (
+                        <SlidePreview slide={message.slideData[activeSlide]} index={activeSlide} isSelected={true} onClick={()=>{}} />
+                      ) : (
+                        <div className="flex items-center justify-center h-full">
+                          <FiLoader className="w-8 h-8 text-gray-400 animate-spin" />
+                          <p className="ml-4 text-gray-500">Generating slide content...</p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </motion.div>
@@ -356,7 +363,7 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
     setIsLoading(true);
 
     try {
-      // Send to SuperAgent route (for new connections, don't show response)
+      // Send to SuperAgent route
       const response = await fetch('/api/superagent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -372,13 +379,43 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
 
       if (!response.ok) throw new Error('API response was not ok.');
       
-      const data = await response.json();
+      let data = await response.json();
 
-      // If this was a new document connection, the backend now handles the response.
-      if (isNewDocumentConnection) {
-        // This is now handled by the backend
+      // Check for the [SLIDES] command
+      if (data.response && data.response.includes('[SLIDES]')) {
+        const cleanedResponse = data.response.replace('[SLIDES]', '').trim();
+        
+        // Update the message content without the command
+        const assistantMessage: Message = {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          content: cleanedResponse,
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+
+        // Now, call the dedicated slide generation API
+        const slideResponse = await fetch('/api/generate-slides', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: cleanedResponse }),
+        });
+
+        if (slideResponse.ok) {
+          const slideData = await slideResponse.json();
+          if (slideData.slides) {
+            // Find the message we just added and update it with the slide data
+            setMessages(prev => prev.map(msg => 
+              msg.id === assistantMessage.id 
+                ? { ...msg, slideData: slideData.slides, hasSlides: true } 
+                : msg
+            ));
+            setCurrentSlides(slideData.slides);
+            setActiveSlide(0);
+          }
+        }
       } else {
-        // Show normal response for non-spreadsheet messages
+        // Normal response without slides
         const assistantMessage: Message = {
           id: `assistant-${Date.now()}`,
           role: 'assistant',

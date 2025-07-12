@@ -452,11 +452,17 @@ Use Get Document By ID only to get Google Docs document, not anything else.
 `;
 
         if (sheetUrl) {
-            systemPrompt += `\n\n**IMPORTANT CONTEXT:** A Google Sheet is connected at the following URL: ${sheetUrl}. Prioritize using the data from this sheet to answer user questions. When the user asks for information, assume they are asking about the content of this spreadsheet unless they specify otherwise. If a user requests a presentation from this sheet, you MUST first use the spreadsheet tools to read the relevant data, and then you MUST call the 'GENERATE_PRESENTATION_SLIDES' tool with the retrieved data as the 'content' parameter.`;
+            systemPrompt += `\n\n**IMPORTANT CONTEXT:** A Google Sheet is connected. When the user asks for a presentation, you MUST follow these steps:
+1. Use your tools to read the relevant data from the sheet.
+2. Formulate the content for each slide. Your output should be a clear, structured list. For each slide, specify a title and the key content or bullet points.
+3. After providing this structured slide content, end your entire response with the exact command: **[SLIDES]**`;
         }
 
         if (docUrl) {
-            systemPrompt += `\n\n**IMPORTANT CONTEXT:** A Google Doc is connected at the following URL: ${docUrl}. Prioritize using the data from this document to answer user questions. When the user asks for information, assume they are asking about the content of this document unless they specify otherwise. If a user requests a presentation from this document, you MUST first use the document tools to read the content, and then you MUST call the 'GENERATE_PRESENTATION_SLIDES' tool with the retrieved data as the 'content' parameter.`;
+            systemPrompt += `\n\n**IMPORTANT CONTEXT:** A Google Doc is connected. When the user asks for a presentation, you MUST follow these steps:
+1. Use your tools to read the relevant data from the document.
+2. Formulate the content for each slide. Your output should be a clear, structured list. For each slide, specify a title and the key content or bullet points.
+3. After providing this structured slide content, end your entire response with the exact command: **[SLIDES]**`;
         }
 
         // Build messages array with system prompt and conversation history
