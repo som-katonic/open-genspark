@@ -141,9 +141,9 @@ export async function POST(req: NextRequest) {
           // Fallback: parse lines starting with • or -
           bulletPoints = slide.content
             .split('\n')
-            .map(line => line.trim())
-            .filter(line => /^[-•]/.test(line))
-            .map(line => line.replace(/^[-•]\s*/, ''));
+            .map((line: string) => line.trim())
+            .filter((line: string) => /^[-•]/.test(line))
+            .map((line: string) => line.replace(/^[-•]\s*/, ''));
         }
         if (bulletPoints && bulletPoints.length > 0) {
           bulletPoints.forEach((point: string, i: number) => {
