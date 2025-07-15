@@ -136,8 +136,17 @@ export async function POST(req: NextRequest) {
         });
         
         // Bullet points with better formatting
-        if (slide.bulletPoints && slide.bulletPoints.length > 0) {
-          slide.bulletPoints.forEach((point: string, i: number) => {
+        let bulletPoints = slide.bulletPoints;
+        if ((!bulletPoints || bulletPoints.length === 0) && slide.content) {
+          // Fallback: parse lines starting with • or -
+          bulletPoints = slide.content
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => /^[-•]/.test(line))
+            .map(line => line.replace(/^[-•]\s*/, ''));
+        }
+        if (bulletPoints && bulletPoints.length > 0) {
+          bulletPoints.forEach((point: string, i: number) => {
             // Bullet point with accent color
             pptxSlide.addText('•', {
               x: 1.5,

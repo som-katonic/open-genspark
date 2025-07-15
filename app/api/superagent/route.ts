@@ -319,6 +319,65 @@ Generate substantial, professional content that accurately reflects the provided
     }
 }
 
+const PUPPETEER_TOOL = 'PUPPETEER_BROWSER';
+
+async function initializePuppeteerTool() {
+  try {
+    const tool = await composio.tools.createCustomTool({
+      slug: PUPPETEER_TOOL,
+      name: 'Browser Automation (Puppeteer)',
+      description: 'Browse the web, scrape data, or interact with web pages using Puppeteer.',
+      inputParams: z.object({
+        url: z.string().describe('The URL to browse or scrape'),
+        action: z.enum(['scrape', 'screenshot', 'html', 'click', 'type', 'select']).default('scrape'),
+        selector: z.string().optional().describe('CSS selector for scraping or interaction'),
+        value: z.string().optional().describe('Value to type or select (for type/select actions)'),
+      }),
+      execute: async (input: any) => {
+        const puppeteer = await import('puppeteer');
+        const browser = await puppeteer.default.launch();
+        const page = await browser.newPage();
+        await page.goto(input.url);
+
+        let result;
+        if (input.action === 'html') {
+          result = await page.content();
+        } else if (input.action === 'scrape' && input.selector) {
+          result = await page.$eval(input.selector, (el: any) => el.textContent);
+        } else if (input.action === 'scrape' && !input.selector) {
+          result = await page.content();
+        } else if (input.action === 'screenshot') {
+          result = await page.screenshot({ encoding: 'base64' });
+        } else if (input.action === 'click' && input.selector) {
+          await page.click(input.selector);
+          result = `Clicked element: ${input.selector}`;
+        } else if (input.action === 'type' && input.selector && input.value) {
+          await page.type(input.selector, input.value);
+          result = `Typed "${input.value}" into ${input.selector}`;
+        } else if (input.action === 'select' && input.selector && input.value) {
+          await page.select(input.selector, input.value);
+          result = `Selected value "${input.value}" in ${input.selector}`;
+        } else {
+          result = await page.content();
+        }
+
+        // Always take a screenshot after the action (except if the action itself is screenshot)
+        let screenshot = null;
+        if (input.action !== 'screenshot') {
+          screenshot = await page.screenshot({ encoding: 'base64' });
+        }
+
+        await browser.close();
+        return { data: { result, screenshot }, error: null, successful: true };
+      }
+    });
+    return tool;
+  } catch (error) {
+    console.error('Error creating puppeteer tool:', error);
+    return null;
+  }
+}
+
 // Remove the old template functions since we now use generateSlideHTML
 
 export async function POST(req: NextRequest) {
@@ -358,6 +417,7 @@ export async function POST(req: NextRequest) {
         
         // Initialize the custom slide generation tool
         await initializeSlideGenerationTool();
+        await initializePuppeteerTool();
         
         // --- REMOVED SLIDE GENERATION LOGIC ---
         // The old logic was too simple and has been removed.

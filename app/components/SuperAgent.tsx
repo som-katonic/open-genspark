@@ -14,6 +14,9 @@ import SlidePreview from './SlidePreview';
 import { ChatMessageList } from '@/components/ui/chat-message-list';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { GlowCard } from '@/components/ui/spotlight-card';
+import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button';
+import { PromptInputBox } from '@/components/ui/ai-prompt-box';
 
 export interface Slide {
   title: string;
@@ -104,14 +107,9 @@ const MessageBubble = ({ message, activeSlide, setActiveSlide, downloadAsPPT }: 
         </div>
       )}
       
-      <div className={clsx(
-        "p-4 rounded-2xl max-w-2xl shadow",
-        message.role === 'user'
-          ? 'bg-blue-500 text-white rounded-br-lg'
-          : 'bg-white text-gray-800 rounded-bl-lg shadow-sm border border-gray-100'
-      )}>
+      <GlowCard glowColor={message.role === 'user' ? 'blue' : 'purple'} className="min-w-0 w-auto h-auto !aspect-auto !h-auto !min-h-0 !p-2 !py-2 !px-4 !shadow-none">
         {message.role === 'assistant' ? (
-          <div className="prose prose-sm max-w-none prose-headings:text-gray-800 prose-p:text-gray-700 prose-a:text-blue-600 prose-code:text-blue-600 prose-code:bg-gray-100 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-blockquote:text-gray-600 prose-blockquote:border-l-blue-500 prose-strong:text-gray-800 prose-ul:text-gray-700 prose-ol:text-gray-700 prose-li:text-gray-700">
+          <div className="prose prose-sm max-w-none text-gray-800">
             <ReactMarkdown 
               remarkPlugins={[remarkGfm]}
               components={{
@@ -126,7 +124,7 @@ const MessageBubble = ({ message, activeSlide, setActiveSlide, downloadAsPPT }: 
             </ReactMarkdown>
           </div>
         ) : (
-          <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+          <p className="whitespace-pre-wrap leading-relaxed text-gray-800">{message.content}</p>
         )}
         
         {message.hasSlides && message.slideData && message.slideData.length > 0 && (
@@ -138,7 +136,7 @@ const MessageBubble = ({ message, activeSlide, setActiveSlide, downloadAsPPT }: 
               Presentation Preview
             </h3>
             <div 
-              className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl overflow-hidden shadow-lg border border-gray-200"
+              className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl overflow-hidden shadow-lg border border-gray-200 h-120"
               onKeyDown={(e) => {
                 if (e.key === 'ArrowLeft' && activeSlide > 0) {
                   setActiveSlide(activeSlide - 1);
@@ -161,12 +159,12 @@ const MessageBubble = ({ message, activeSlide, setActiveSlide, downloadAsPPT }: 
                     scale: { duration: 0.4 },
                     y: { duration: 0.4 }
                   }}
-                  className="w-full max-h-96 bg-white rounded-lg overflow-y-auto overflow-x-hidden"
+                  className="w-full max-h-130 bg-white rounded-lg overflow-y-auto overflow-x-hidden"
                   style={{ minHeight: '300px' }}
                 >
                   {message.slideData[activeSlide] && message.slideData[activeSlide].html ? (
                     <div 
-                      className="w-full h-full p-4"
+                      className="w-full h-120 p-4"
                       dangerouslySetInnerHTML={{ __html: message.slideData[activeSlide].html! }}
                     />
                   ) : (
@@ -232,7 +230,7 @@ const MessageBubble = ({ message, activeSlide, setActiveSlide, downloadAsPPT }: 
             </div>
           </div>
         )}
-      </div>
+      </GlowCard>
       
       {message.role === 'user' && (
         <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center flex-shrink-0">
@@ -320,13 +318,15 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
     inputRef.current?.focus();
   };
 
-  const handleSubmit = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!prompt.trim() || isLoading) return;
+  // Refactor handleSubmit to accept a message argument
+  const handleSubmit = async (message?: string, e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const msg = (typeof message === 'string' ? message : prompt).trim();
+    if (!msg || isLoading) return;
 
     // Check if the prompt contains a spreadsheet URL
-    const detectedSheetUrl = detectSpreadsheetUrl(prompt);
-    const detectedDocUrl = detectDocumentUrl(prompt);
+    const detectedSheetUrl = detectSpreadsheetUrl(msg);
+    const detectedDocUrl = detectDocumentUrl(msg);
 
     // Always switch to the correct sidebar if a URL is detected
     if (detectedSheetUrl && validateSheetUrl(detectedSheetUrl)) {
@@ -346,12 +346,11 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
     const userMessage: Message = {
       id: `user-${Date.now()}`,
       role: 'user',
-      content: prompt,
+      content: msg,
       timestamp: new Date()
     };
 
     setMessages(prev => [...prev, userMessage]);
-    const currentPrompt = prompt;
     setPrompt('');
     setIsLoading(true);
 
@@ -361,7 +360,7 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: currentPrompt,
+          prompt: msg,
           selectedTool: selectedTool.id,
           conversationHistory: messages,
           userId: userId,
@@ -586,43 +585,13 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
         {/* Input Area */}
         <div className="border-t border-gray-200 bg-white p-4 shadow-md">
           <div className="max-w-4xl mx-auto">
-            <form onSubmit={handleSubmit} className="relative">
-              <div className="flex items-end gap-3 bg-gray-50/50 rounded-2xl p-3 border border-gray-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all">
-                {/* Text Input */}
-                <div className="flex-1">
-                  <Textarea
-                    ref={inputRef}
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Ask Google Super Agent anything or paste a Google Sheets/Docs URL..."
-                    className="min-h-[44px] max-h-32 resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 p-0 text-center placeholder:text-center"
-                    rows={1}
-                  />
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2">
-                  <Button type="button" variant="ghost" size="icon" className="h-8 w-8">
-                    <FiPaperclip className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    type="submit" 
-                    disabled={isLoading || !prompt.trim()} 
-                    size="icon"
-                    className="h-8 w-8 bg-blue-500 hover:bg-blue-600"
-                  >
-                    {isLoading ? (
-                      <FiLoader className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <FiArrowRight className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </form>
-            
-            <p className="text-xs text-center text-gray-400 mt-2">
+            <PromptInputBox
+              onSend={(message) => handleSubmit(message)}
+              isLoading={isLoading}
+              placeholder="Ask Google Super Agent anything or paste a Google Sheets/Docs URL..."
+              className="bg-white rounded-2xl shadow-xl text-black"
+            />
+            <p className="text-xs text-center text-gray-400 mt-2 font-sans">
               Google Super Agent can make mistakes. Consider checking important information.
             </p>
           </div>
