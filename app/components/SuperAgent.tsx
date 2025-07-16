@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { GlowCard } from '@/components/ui/spotlight-card';
 import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button';
 import { PromptInputBox } from '@/components/ui/ai-prompt-box';
+import { HyperText } from '@/components/ui/hyper-text';
 
 export interface Slide {
   title: string;
@@ -60,15 +61,11 @@ const WelcomeScreen = ({ onPromptSelect }: { onPromptSelect: (prompt: string) =>
 
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-20 h-20 bg-gradient-to-br from-gray-200 to-gray-300 rounded-2xl flex items-center justify-center shadow-lg mb-6"
-      >
-        <FiBox className="w-10 h-10 text-gray-500" />
-      </motion.div>
-      <h1 className="text-3xl font-bold text-gray-800 mb-2">Super Agent</h1>
+
+
+      <div className="mb-2">
+        <HyperText text="Super Agent" className="text-8xl font-bold" />
+      </div>
       <p className="text-gray-500 mb-8 max-w-md">Powered by Composio - Your creative partner for generating content, slides, and more.</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
         {examplePrompts.map((prompt, index) => (
