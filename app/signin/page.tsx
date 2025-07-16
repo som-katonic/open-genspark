@@ -114,7 +114,7 @@ export default function SignIn() {
         <div className="space-y-4">
           <h1 className="text-5xl font-bold mb-2">
             <Typewriter 
-              text="Welcome to Google Super Agent"
+              text="Welcome to Super Agent"
               speed={80}
               className="text-5xl font-bold"
             />

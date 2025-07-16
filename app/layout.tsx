@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Google Super Agent Powered by Composio",
+  title: "Super Agent Powered by Composio",
   description: "Create professional presentations and chat with your Google Sheets using AI. Powered by Gemini and Composio.",
 };
 

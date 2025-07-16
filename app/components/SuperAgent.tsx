@@ -68,7 +68,7 @@ const WelcomeScreen = ({ onPromptSelect }: { onPromptSelect: (prompt: string) =>
       >
         <FiBox className="w-10 h-10 text-gray-500" />
       </motion.div>
-      <h1 className="text-3xl font-bold text-gray-800 mb-2">Google Super Agent</h1>
+      <h1 className="text-3xl font-bold text-gray-800 mb-2">Super Agent</h1>
       <p className="text-gray-500 mb-8 max-w-md">Powered by Composio - Your creative partner for generating content, slides, and more.</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-2xl">
         {examplePrompts.map((prompt, index) => (
@@ -588,11 +588,11 @@ export default function SuperAgent({ className, userId }: SuperAgentProps) {
             <PromptInputBox
               onSend={(message) => handleSubmit(message)}
               isLoading={isLoading}
-              placeholder="Ask Google Super Agent anything or paste a Google Sheets/Docs URL..."
+              placeholder="Ask Super Agent anything or paste a Google Sheets/Docs URL..."
               className="bg-white rounded-2xl shadow-xl text-black"
             />
             <p className="text-xs text-center text-gray-400 mt-2 font-sans">
-              Google Super Agent can make mistakes. Consider checking important information.
+              Super Agent can make mistakes. Consider checking important information.
             </p>
           </div>
         </div>
