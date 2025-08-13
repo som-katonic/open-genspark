@@ -161,6 +161,11 @@ Customize the interface by modifying components in `app/components/` and `compon
 4. Test thoroughly
 5. Submit a pull request
 
+## References
+- [Composio Website](https://composio.dev/)
+- [Composio Documentation](https://docs.composio.dev/docs/welcome)
+- [Composio SDK](https://github.com/composiohq/composio)
+
 ## License
 
 This project is open source and available under the [MIT License](LICENSE).
