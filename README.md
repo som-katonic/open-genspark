@@ -1,6 +1,6 @@
-# Super Agent
+# Open Genspark
 
-A powerful AI assistant powered by Google's Gemini AI that can generate content, create presentations, analyze Google Sheets/Docs, and provide intelligent responses. This application combines chat-based AI interaction with document integration and presentation generation capabilities.
+Open Source Genspark powered by Google's Gemini AI that can generate content, create presentations, analyze Google Sheets/Docs, and provide intelligent responses. This application combines chat-based AI interaction with document integration and presentation generation capabilities.
 
 ## Features
 
